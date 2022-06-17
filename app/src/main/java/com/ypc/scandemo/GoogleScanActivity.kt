@@ -1,12 +1,9 @@
 package com.ypc.scandemo
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.graphics.*
 import android.os.Bundle
 import android.text.method.ScrollingMovementMethod
-import android.util.Log
-import android.util.SparseArray
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -15,21 +12,13 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
-import androidx.core.util.forEach
-import androidx.core.util.isEmpty
 import androidx.lifecycle.LifecycleOwner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
-import com.huawei.hms.ml.scan.HmsScan
-import com.ypcang.android.shop.R
 import kotlinx.android.synthetic.main.activity_scan.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import com.huawei.hms.ml.scan.HmsScanAnalyzer
-import com.huawei.hms.mlsdk.common.MLFrame
-import java.io.ByteArrayOutputStream
-import java.nio.ByteBuffer
 
 
 /**
