@@ -1,7 +1,6 @@
 package com.ypc.scandemo
 
 import android.annotation.SuppressLint
-import android.graphics.*
 import android.os.Bundle
 import android.text.method.ScrollingMovementMethod
 import androidx.appcompat.app.AppCompatActivity
@@ -15,6 +14,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import kotlinx.android.synthetic.main.activity_scan.*
 import java.util.concurrent.ExecutorService
@@ -30,6 +30,8 @@ class GoogleScanActivity : AppCompatActivity() {
 
 
     private lateinit var cameraExecutor: ExecutorService
+    private var enableAnalyze = true
+    private var continuous = true
 
     private val scanner = BarcodeScanning.getClient(
         BarcodeScannerOptions.Builder()
@@ -48,7 +50,19 @@ class GoogleScanActivity : AppCompatActivity() {
         cameraExecutor = Executors.newSingleThreadExecutor()
         imageAnalysis.setAnalyzer(cameraExecutor, this::analyzeBitmap)
         previewView.startCamera(this, imageAnalysis)
+        previewView.setOnClickListener {
+            startAnalyze()
+        }
+    }
 
+
+    private fun startAnalyze() {
+        enableAnalyze = true
+
+    }
+
+    private fun stopAnalyze() {
+        enableAnalyze = false
     }
 
 
@@ -57,22 +71,32 @@ class GoogleScanActivity : AppCompatActivity() {
      */
     @SuppressLint("UnsafeOptInUsageError")
     private fun analyzeBitmap(imageProxy: ImageProxy) {
+        if (!enableAnalyze) {
+            imageProxy.close()
+            return
+        }
+
         val mediaImage = imageProxy.image ?: return
         val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
         scanner.process(image)
-            .addOnSuccessListener { result ->
-                if (result.isNullOrEmpty()) return@addOnSuccessListener
-//                scanner.close()
-                val text = result.joinToString { it.displayValue!! }
-                showResult(text)
-            }
-
-            .addOnFailureListener {
-                // Do nothing
-            }
+            .addOnSuccessListener(this::onSuccess)
             .addOnCompleteListener {
                 imageProxy.close()
             }
+    }
+
+    /**
+     * 分析结果
+     */
+    private fun onSuccess(result: List<Barcode>) {
+        if (result.isEmpty()) return
+
+        if (!continuous) {
+            stopAnalyze()
+        }
+
+        val value = result.joinToString { it.displayValue!! }
+        showResult(value)
     }
 
     /**
@@ -100,7 +124,7 @@ class GoogleScanActivity : AppCompatActivity() {
 
     private fun showResult(result: String) {
         info_text.append(result)
-        info_text.append("\n")
+        info_text.append("\n\n")
 
         val offset = info_text.lineCount * info_text.lineHeight
         if (offset > info_text.height) {
@@ -109,8 +133,9 @@ class GoogleScanActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
+        scanner.close()
         cameraExecutor.shutdown()
+        super.onDestroy()
     }
 
 

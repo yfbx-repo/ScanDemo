@@ -12,6 +12,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import com.huawei.hms.ml.scan.HmsScan
 import com.huawei.hms.ml.scan.HmsScanAnalyzer
 import com.huawei.hms.mlsdk.common.MLFrame
 import kotlinx.android.synthetic.main.activity_scan.*
@@ -28,9 +29,9 @@ class HmsScanActivity : AppCompatActivity() {
 
     private lateinit var cameraExecutor: ExecutorService
 
-    private val imageAnalysis = ImageAnalysis.Builder()
-        .setBackpressureStrategy(ImageAnalysis.STRATEGY_BLOCK_PRODUCER)
-        .build()
+    private val imageAnalysis = ImageAnalysis.Builder().build()
+    private var enableAnalyze = true
+    private var continuous = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,7 +41,18 @@ class HmsScanActivity : AppCompatActivity() {
         cameraExecutor = Executors.newSingleThreadExecutor()
         imageAnalysis.setAnalyzer(cameraExecutor, this::hmsAnalyzer)
         previewView.startCamera(this, imageAnalysis)
+        previewView.setOnClickListener {
+            startAnalyze()
+        }
+    }
 
+    private fun startAnalyze() {
+        enableAnalyze = true
+
+    }
+
+    private fun stopAnalyze() {
+        enableAnalyze = false
     }
 
     /**
@@ -48,17 +60,34 @@ class HmsScanActivity : AppCompatActivity() {
      */
     @SuppressLint("UnsafeOptInUsageError")
     private fun hmsAnalyzer(imageProxy: ImageProxy) {
+        if (!enableAnalyze) {
+            imageProxy.close()
+            return
+        }
+
+        //解析
         val mediaImage = imageProxy.image ?: return
         val mlFrame = MLFrame.fromMediaImage(mediaImage, 0)
         val barcodeDetector = HmsScanAnalyzer(null)
-        barcodeDetector.analyzInAsyn(mlFrame).addOnSuccessListener {
-            mediaImage.close()
-            imageProxy.close()
-            if (it.isNotEmpty()) {
-                val result = it.map { code -> code.originalValue }
-                showResult(result.joinToString())
+        val task = barcodeDetector.analyzInAsyn(mlFrame)
+        task.addOnSuccessListener(this::onSuccess)
+            .addOnCompleteListener {
+                imageProxy.close()
             }
+    }
+
+    /**
+     * 分析结果
+     */
+    private fun onSuccess(result: List<HmsScan>) {
+        if (result.isEmpty()) return
+
+        if (!continuous) {
+            stopAnalyze()
         }
+
+        val value = result.joinToString { it.originalValue }
+        showResult(value)
     }
 
 
@@ -85,9 +114,9 @@ class HmsScanActivity : AppCompatActivity() {
     }
 
 
-    private fun showResult(result: String) {
+    private fun showResult(result: String) = runOnUiThread {
         info_text.append(result)
-        info_text.append("\n")
+        info_text.append("\n\n")
 
         val offset = info_text.lineCount * info_text.lineHeight
         if (offset > info_text.height) {
